@@ -57,12 +57,7 @@ uint16_t PWMOut = 3000;
 float ADCOutputConverted;
 uint64_t _micro = 0;
 uint64_t TimeOutputLoop = 0;
-typedef struct {
-	ADC_ChannelConfTypeDef Config;
-	uint32_t data;
-} ADCStructure;
 
-ADCStructure ADCChannel[1] = { 0 };
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -134,10 +129,17 @@ int main(void) {
 
 		//1 Khz Loop
 		if (micros() - TimeOutputLoop > 1000) { //us
-
+//			CONTROL_PWM();
+			float K_P = 5, K_I = 0.2, K_D = 0;
+			static float ErrorValue, SummaryError, PreviousError;
+			ADCOutputConverted = (((ADCFeedBack *3.3)/4096)*1000);
+			ErrorValue = 1000 - ADCOutputConverted;
+			SummaryError += ErrorValue;
+			PWMOut = K_P * ErrorValue + K_I * SummaryError + K_D * (ErrorValue - PreviousError);
+			PreviousError = ErrorValue;
 			TimeOutputLoop = micros();
 			__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, PWMOut);
-			CONTROL_PWM();
+
 
 			// #001
 		}
@@ -446,21 +448,17 @@ static void MX_GPIO_Init(void) {
 }
 
 /* USER CODE BEGIN 4 */
-void CONTROL_PWM(){
-	float K_P = 5, K_I = 0.2, K_D = 1;
-	static float ErrorValue, SummaryError, PreviousError;
-	ErrorValue = 1000 - ADCOutputConverted;
-	SummaryError += ErrorValue;
-	PWMOut = K_P * ErrorValue + K_I * SummaryError + K_D * (ErrorValue - PreviousError);
-	PreviousError = ErrorValue;
-
-	HAL_ADC_ConfigChannel(&hadc1, &ADCChannel[0].Config);//select channel
-	HAL_ADC_Start(&hadc1);//Start
-	HAL_ADC_PollForConversion(&hadc1, 1);//wait
-	ADCChannel[0].data = HAL_ADC_GetValue(&hadc1);//Getvalue
-	HAL_ADC_Stop(&hadc1);//stop
-	ADCOutputConverted = (((ADCChannel[0].data *3.3)/4096)*1000);
-}
+//	float K_P = 5, K_I = 0.2, K_D = 0;
+//void CONTROL_PWM(){
+//
+//	static float ErrorValue, SummaryError, PreviousError;
+//	ADCOutputConverted = (((ADCFeedBack *3.3)/4096)*1000);
+//	ErrorValue = 1000 - ADCOutputConverted;
+//	SummaryError += ErrorValue;
+//	PWMOut = K_P * ErrorValue + K_I * SummaryError + K_D * (ErrorValue - PreviousError);
+//	PreviousError = ErrorValue;
+//
+//}
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
 	ADCFeedBack = HAL_ADC_GetValue(&hadc1);
 	ADCUpdateFlag = 1;
